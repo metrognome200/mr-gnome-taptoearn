@@ -4,22 +4,19 @@
     },
     "server": {
         "port": 3001,
-        "host": "localhost"
+        "host": "localhost",
+        "cors": {
+            "origin": ["http://localhost:3000"],
+            "methods": ["GET", "POST"]
+        }
     },
     "database": {
         "url": "YOUR_TEST_SUPABASE_URL",
         "key": "YOUR_TEST_SUPABASE_KEY"
     },
-    "ton": {
-        "network": "testnet",
-        "contracts": {
-            "token": {
-                "address": "YOUR_TEST_TOKEN_CONTRACT_ADDRESS"
-            },
-            "game": {
-                "address": "YOUR_TEST_GAME_CONTRACT_ADDRESS"
-            }
-        }
+    "telegram": {
+        "botToken": "YOUR_TEST_BOT_TOKEN",
+        "webAppUrl": "https://t.me/MrGnomeTestBot"
     },
     "game": {
         "tapCooldown": 1,

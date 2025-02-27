@@ -6,7 +6,8 @@ import {
     contractAddress,
     ContractProvider,
     Sender,
-    SendMode 
+    SendMode,
+    toNano
 } from '@ton/core';
 
 export class GnomeToken implements Contract {
@@ -41,7 +42,8 @@ export class GnomeToken implements Contract {
         decimals: bigint;
         name: string;
         symbol: string;
-    }) {
+    }): GnomeToken {
+        const code = Cell.fromBoc(Buffer.from('... your compiled contract code here ...', 'base64'))[0];
         const data = GnomeToken.createDataCell(
             params.owner,
             params.totalSupply,
@@ -49,16 +51,17 @@ export class GnomeToken implements Contract {
             params.name,
             params.symbol
         );
-        return new GnomeToken(contractAddress(0, { code: Cell.EMPTY, data }), {
-            code: Cell.EMPTY,
+        return new GnomeToken(contractAddress(0, { code, data }), {
+            code,
             data,
         });
     }
 
-    async sendDeploy(provider: ContractProvider, via: Sender) {
+    async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
         await provider.internal(via, {
-            value: '0.01',
+            value,
             bounce: false,
+            body: beginCell().endCell(),
         });
     }
 
@@ -71,7 +74,7 @@ export class GnomeToken implements Contract {
         }
     ) {
         await provider.internal(via, {
-            value: '0.05',
+            value: toNano('0.05'),
             bounce: true,
             body: beginCell()
                 .storeUint(0x1674b0a0, 32) // op::mint_tokens()
@@ -90,7 +93,7 @@ export class GnomeToken implements Contract {
         }
     ) {
         await provider.internal(via, {
-            value: '0.05',
+            value: toNano('0.05'),
             bounce: true,
             body: beginCell()
                 .storeUint(0x5fcc3d14, 32) // op::transfer()
@@ -100,14 +103,14 @@ export class GnomeToken implements Contract {
         });
     }
 
-    async getBalance(provider: ContractProvider, address: Address) {
+    async getBalance(provider: ContractProvider, address: Address): Promise<bigint> {
         const result = await provider.get('get_wallet_balance', [
             { type: 'slice', cell: beginCell().storeAddress(address).endCell() },
         ]);
         return result.stack.readBigNumber();
     }
 
-    async getTotalSupply(provider: ContractProvider) {
+    async getTotalSupply(provider: ContractProvider): Promise<bigint> {
         const result = await provider.get('get_total_supply', []);
         return result.stack.readBigNumber();
     }

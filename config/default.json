@@ -19,24 +19,6 @@
         "botToken": "YOUR_BOT_TOKEN",
         "webAppUrl": "https://t.me/MrGnomeBot"
     },
-    "ton": {
-        "network": "testnet",
-        "endpoints": {
-            "mainnet": "https://toncenter.com/api/v2/jsonRPC",
-            "testnet": "https://testnet.toncenter.com/api/v2/jsonRPC"
-        },
-        "contracts": {
-            "token": {
-                "address": "YOUR_TOKEN_CONTRACT_ADDRESS",
-                "name": "GNOME",
-                "symbol": "GNOME",
-                "decimals": 9
-            },
-            "game": {
-                "address": "YOUR_GAME_CONTRACT_ADDRESS"
-            }
-        }
-    },
     "game": {
         "tapCooldown": 5,
         "baseTapReward": 1,

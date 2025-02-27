@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useSupabase } from './SupabaseContext';
-import { useTon } from './TonContext';
 import { useSocket } from './SocketContext';
 
 const GameStateContext = createContext();
@@ -15,12 +14,10 @@ export const useGameState = () => {
 
 export const GameStateProvider = ({ children }) => {
     const { supabase, user } = useSupabase();
-    const { wallet } = useTon();
     const { socket } = useSocket();
 
     const [gameState, setGameState] = useState({
         gnomeBalance: 0,
-        tonBalance: 0,
         tapPower: 1,
         level: 1,
         experience: 0,
@@ -35,10 +32,10 @@ export const GameStateProvider = ({ children }) => {
     const TAP_COOLDOWN = 5; // seconds
 
     useEffect(() => {
-        if (wallet) {
+        if (user) {
             loadGameState();
         }
-    }, [wallet]);
+    }, [user]);
 
     const loadGameState = async () => {
         try {
@@ -49,49 +46,52 @@ export const GameStateProvider = ({ children }) => {
                     boosters(*),
                     mining_cards(*),
                     user_achievements(
-                        *,
-                        achievements(*)
+                        achievement_id,
+                        progress,
+                        completed
                     ),
                     user_tasks(
-                        *,
-                        tasks(*)
+                        task_id,
+                        progress,
+                        completed
                     )
                 `)
-                .eq('wallet_address', wallet)
+                .eq('id', user.id)
                 .single();
 
             if (error) throw error;
 
             setGameState({
-                gnomeBalance: data.gnome_balance,
-                tonBalance: data.ton_balance,
-                tapPower: data.tap_power,
-                level: data.level,
-                experience: data.experience,
+                gnomeBalance: data.gnome_balance || 0,
+                tapPower: data.tap_power || 1,
+                level: data.level || 1,
+                experience: data.experience || 0,
                 lastTap: data.last_tap,
-                boosters: data.boosters,
-                miningCards: data.mining_cards,
-                achievements: data.user_achievements,
-                tasks: data.user_tasks
+                boosters: data.boosters || [],
+                miningCards: data.mining_cards || [],
+                achievements: data.user_achievements || [],
+                tasks: data.user_tasks || []
             });
         } catch (error) {
             console.error('Error loading game state:', error);
         }
     };
 
-    const handleTap = async () => {
-        if (cooldown > 0 || !wallet) return;
+    const tap = async () => {
+        if (cooldown > 0) return;
 
         try {
+            const now = new Date().toISOString();
             const reward = calculateTapReward();
-            
+
             const { data, error } = await supabase
                 .from('users')
                 .update({
                     gnome_balance: gameState.gnomeBalance + reward,
-                    last_tap: new Date().toISOString()
+                    last_tap: now,
+                    experience: gameState.experience + 1
                 })
-                .eq('wallet_address', wallet)
+                .eq('id', user.id)
                 .select()
                 .single();
 
@@ -100,27 +100,34 @@ export const GameStateProvider = ({ children }) => {
             setGameState(prev => ({
                 ...prev,
                 gnomeBalance: data.gnome_balance,
+                experience: data.experience,
                 lastTap: data.last_tap
             }));
 
-            startCooldown();
+            setCooldown(TAP_COOLDOWN);
+            const timer = setInterval(() => {
+                setCooldown(prev => {
+                    if (prev <= 1) {
+                        clearInterval(timer);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
 
-            // Emit tap event to update other clients
-            socket?.emit('user-tap', {
-                userId: wallet,
-                reward
-            });
+            // Notify other clients
+            socket?.emit('tap', { userId: user.id, reward });
         } catch (error) {
-            console.error('Error handling tap:', error);
+            console.error('Error processing tap:', error);
         }
     };
 
     const calculateTapReward = () => {
         let reward = gameState.tapPower;
-
-        // Apply active boosters
+        
+        // Apply booster effects
         gameState.boosters.forEach(booster => {
-            if (new Date(booster.expires_at) > new Date()) {
+            if (booster.active && booster.expires_at > new Date().toISOString()) {
                 reward *= booster.multiplier;
             }
         });
@@ -128,29 +135,13 @@ export const GameStateProvider = ({ children }) => {
         return reward;
     };
 
-    const startCooldown = () => {
-        setCooldown(TAP_COOLDOWN);
-        const timer = setInterval(() => {
-            setCooldown(prev => {
-                if (prev <= 1) {
-                    clearInterval(timer);
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    };
-
-    const value = {
-        ...gameState,
-        handleTap,
-        cooldown,
-        isCooldown: cooldown > 0,
-        loadGameState
-    };
-
     return (
-        <GameStateContext.Provider value={value}>
+        <GameStateContext.Provider value={{
+            gameState,
+            cooldown,
+            tap,
+            loadGameState
+        }}>
             {children}
         </GameStateContext.Provider>
     );

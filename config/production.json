@@ -3,26 +3,20 @@
         "name": "Mr. Gnome Tap-to-Earn"
     },
     "server": {
-        "port": "PORT",
+        "port": 80,
         "host": "0.0.0.0",
         "cors": {
-            "origin": ["https://mr-gnome.app"]
+            "origin": ["https://your-production-domain.com"],
+            "methods": ["GET", "POST"]
         }
     },
     "database": {
-        "url": "SUPABASE_URL",
-        "key": "SUPABASE_KEY"
+        "url": "YOUR_PRODUCTION_SUPABASE_URL",
+        "key": "YOUR_PRODUCTION_SUPABASE_KEY"
     },
-    "ton": {
-        "network": "mainnet",
-        "contracts": {
-            "token": {
-                "address": "TON_TOKEN_CONTRACT"
-            },
-            "game": {
-                "address": "TON_GAME_CONTRACT"
-            }
-        }
+    "telegram": {
+        "botToken": "YOUR_PRODUCTION_BOT_TOKEN",
+        "webAppUrl": "https://t.me/MrGnomeBot"
     },
     "security": {
         "rateLimit": {

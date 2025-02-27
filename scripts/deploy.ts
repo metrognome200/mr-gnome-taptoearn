@@ -1,4 +1,11 @@
-import { TonClient, WalletContractV4, internal } from '@ton/ton';
+import { 
+    TonClient, 
+    WalletContractV4, 
+    internal,
+    fromNano,
+    toNano,
+    Address
+} from '@ton/ton';
 import { mnemonicToPrivateKey } from '@ton/crypto';
 import { GnomeToken } from '../wrappers/GnomeToken';
 import { GnomeGame } from '../wrappers/GnomeGame';
@@ -21,49 +28,43 @@ async function deploy() {
 
     // Check wallet balance
     const balance = await contract.getBalance();
-    console.log(`Deployer wallet balance: ${balance.toString()}`);
+    console.log(`Deployer wallet balance: ${fromNano(balance)} TON`);
 
-    if (balance.isZero()) {
+    if (balance === 0n) {
         throw new Error('Deployer wallet has zero balance');
     }
 
     // Deploy GnomeToken contract
     console.log('Deploying GnomeToken contract...');
     const tokenContract = GnomeToken.create({
-        owner: await contract.address(),
+        owner: contract.address,
         totalSupply: 1000000000n, // 1 billion tokens
         decimals: 9n,
         name: 'GNOME',
         symbol: 'GNOME'
     });
 
-    const tokenDeployResult = await contract.deploy({
-        value: internal.toNano('0.1'),
-        body: tokenContract.createDeployMessage(),
-    });
-
-    console.log(`GnomeToken deployed at: ${tokenDeployResult.address}`);
+    await tokenContract.sendDeploy(contract.sender, contract.sender, toNano('0.1'));
+    const tokenAddress = tokenContract.address;
+    console.log(`GnomeToken deployed at: ${tokenAddress.toString()}`);
 
     // Deploy GnomeGame contract
     console.log('Deploying GnomeGame contract...');
     const gameContract = GnomeGame.create({
-        owner: await contract.address(),
-        tokenAddress: tokenDeployResult.address,
+        owner: contract.address,
+        tokenAddress: tokenAddress,
         tapCooldown: 5n,
         baseTapReward: 1000000n // 0.001 GNOME
     });
 
-    const gameDeployResult = await contract.deploy({
-        value: internal.toNano('0.1'),
-        body: gameContract.createDeployMessage(),
-    });
-
-    console.log(`GnomeGame deployed at: ${gameDeployResult.address}`);
+    await gameContract.sendDeploy(contract.sender, contract.sender, toNano('0.1'));
+    const gameAddress = gameContract.address;
+    console.log(`GnomeGame deployed at: ${gameAddress.toString()}`);
 
     // Save contract addresses
     console.log('\nContract Addresses:');
-    console.log('Token:', tokenDeployResult.address.toString());
-    console.log('Game:', gameDeployResult.address.toString());
+    console.log('Token:', tokenAddress.toString());
+    console.log('Game:', gameAddress.toString());
 }
 
 deploy().catch(console.error);

@@ -6,7 +6,8 @@ import {
     contractAddress,
     ContractProvider,
     Sender,
-    SendMode
+    SendMode,
+    toNano
 } from '@ton/core';
 
 export class GnomeGame implements Contract {
@@ -39,23 +40,25 @@ export class GnomeGame implements Contract {
         tokenAddress: Address;
         tapCooldown: bigint;
         baseTapReward: bigint;
-    }) {
+    }): GnomeGame {
+        const code = Cell.fromBoc(Buffer.from('... your compiled contract code here ...', 'base64'))[0];
         const data = GnomeGame.createDataCell(
             params.owner,
             params.tokenAddress,
             params.tapCooldown,
             params.baseTapReward
         );
-        return new GnomeGame(contractAddress(0, { code: Cell.EMPTY, data }), {
-            code: Cell.EMPTY,
+        return new GnomeGame(contractAddress(0, { code, data }), {
+            code,
             data,
         });
     }
 
-    async sendDeploy(provider: ContractProvider, via: Sender) {
+    async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
         await provider.internal(via, {
-            value: '0.01',
+            value,
             bounce: false,
+            body: beginCell().endCell(),
         });
     }
 
@@ -67,7 +70,7 @@ export class GnomeGame implements Contract {
         }
     ) {
         await provider.internal(via, {
-            value: '0.05',
+            value: toNano('0.05'),
             bounce: true,
             body: beginCell()
                 .storeUint(0x7e8764ef, 32) // op::tap()
@@ -87,7 +90,7 @@ export class GnomeGame implements Contract {
         }
     ) {
         await provider.internal(via, {
-            value: '0.05',
+            value: toNano('0.05'),
             bounce: true,
             body: beginCell()
                 .storeUint(0x2b86c972, 32) // op::add_booster()
@@ -99,14 +102,14 @@ export class GnomeGame implements Contract {
         });
     }
 
-    async getPlayerBalance(provider: ContractProvider, address: Address) {
+    async getPlayerBalance(provider: ContractProvider, address: Address): Promise<bigint> {
         const result = await provider.get('get_player_balance', [
             { type: 'slice', cell: beginCell().storeAddress(address).endCell() },
         ]);
         return result.stack.readBigNumber();
     }
 
-    async getPlayerBoosters(provider: ContractProvider, address: Address) {
+    async getPlayerBoosters(provider: ContractProvider, address: Address): Promise<Cell> {
         const result = await provider.get('get_player_boosters', [
             { type: 'slice', cell: beginCell().storeAddress(address).endCell() },
         ]);
