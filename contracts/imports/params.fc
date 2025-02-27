@@ -1,0 +1,17 @@
+;; Contract parameters and constants
+
+const int WORKCHAIN = 0;               ;; Default workchain
+const int MIN_TON_FOR_STORAGE = 10000000;  ;; 0.01 TON
+const int GAS_CONSUMPTION = 10000000;   ;; 0.01 TON
+
+;; Game parameters
+const int DEFAULT_TAP_COOLDOWN = 5;     ;; 5 seconds
+const int BASE_TAP_REWARD = 1000000;    ;; 1 GNOME
+const int MAX_BOOSTER_MULTIPLIER = 500; ;; 5x
+const int MIN_BOOSTER_DURATION = 3600;  ;; 1 hour
+const int MAX_BOOSTER_DURATION = 604800; ;; 1 week
+
+;; Mining parameters
+const int MIN_MINING_POWER = 100000;    ;; 0.1 GNOME per hour
+const int MAX_MINING_POWER = 10000000;  ;; 10 GNOME per hour
+const int MINING_REWARD_INTERVAL = 3600; ;; 1 hour

@@ -1,0 +1,38 @@
+{
+  "name": "mr-gnome-taptoearn",
+  "version": "1.0.0",
+  "description": "Mr. Gnome Tap-to-Earn Game on TON blockchain",
+  "scripts": {
+    "build": "ton-compiler contracts/*.fc",
+    "deploy": "ts-node scripts/deploy.ts",
+    "test": "jest",
+    "start": "node server/src/index.js",
+    "dev": "nodemon server/src/index.js",
+    "client": "cd client && npm start",
+    "dev:all": "concurrently \"npm run dev\" \"npm run client\"",
+    "install:all": "npm install && cd client && npm install"
+  },
+  "dependencies": {
+    "@ton/core": "^0.56.0",
+    "@ton/crypto": "^3.2.0",
+    "@ton/ton": "^13.11.2",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "@supabase/supabase-js": "^2.21.0",
+    "winston": "^3.8.2",
+    "socket.io": "^4.6.1"
+  },
+  "devDependencies": {
+    "@ton-community/func-js": "^0.6.2",
+    "@ton-community/test-utils": "^0.3.0",
+    "@types/node": "^20.8.2",
+    "jest": "^29.7.0",
+    "ton-compiler": "^2.3.0",
+    "ts-jest": "^29.1.1",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2",
+    "nodemon": "^2.0.22",
+    "concurrently": "^8.0.1",
+    "eslint": "^8.40.0"
+  }
+}

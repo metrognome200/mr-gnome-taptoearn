@@ -1,0 +1,192 @@
+;; GNOME Game Contract
+;; This contract handles the game mechanics including tapping, boosters, and mining
+
+#include "imports/stdlib.fc";
+#include "imports/params.fc";
+#include "imports/op-codes.fc";
+
+;; Storage variables
+global cell owner_address;          ;; Contract owner address
+global cell token_address;          ;; GNOME token contract address
+global cell players;                ;; Dictionary of player data
+global int tap_cooldown;            ;; Cooldown period between taps (in seconds)
+global int base_tap_reward;         ;; Base reward for each tap
+
+;; Player structure in players dictionary:
+;; { 
+;;   balance: coins,
+;;   last_tap: uint64,
+;;   tap_power: uint32,
+;;   mining_power: uint32,
+;;   boosters: ^cell
+;; }
+
+;; Initialize storage
+() load_data() impure {
+    slice ds = get_data().begin_parse();
+    owner_address = ds~load_ref();
+    token_address = ds~load_ref();
+    players = ds~load_dict();
+    tap_cooldown = ds~load_uint(32);
+    base_tap_reward = ds~load_coins();
+}
+
+;; Save storage
+() save_data() impure {
+    set_data(begin_cell()
+        .store_ref(owner_address)
+        .store_ref(token_address)
+        .store_dict(players)
+        .store_uint(tap_cooldown, 32)
+        .store_coins(base_tap_reward)
+        .end_cell());
+}
+
+;; Calculate tap reward for a player
+int calculate_tap_reward(slice player_address) {
+    (cell player_data, int found?) = players.udict_get?(256, player_address);
+    throw_unless(75, found?);
+    
+    slice ds = player_data.begin_parse();
+    int tap_power = ds~load_uint(32);
+    cell boosters = ds~load_ref();
+    
+    ;; Start with base reward * tap power
+    int reward = base_tap_reward * tap_power;
+    
+    ;; Apply booster multipliers
+    (int key, slice value, int found?) = boosters.udict_get_min?(32);
+    while (found?) {
+        int multiplier = value~load_uint(32);
+        int expiry = value~load_uint(64);
+        
+        ;; Check if booster is still active
+        if (now() < expiry) {
+            reward = (reward * multiplier) / 100;
+        }
+        
+        (key, value, found?) = boosters.udict_get_next?(32, key);
+    }
+    
+    return reward;
+}
+
+;; Handle player tap
+() handle_tap(slice player_address) impure {
+    ;; Check if player exists
+    (cell player_data, int found?) = players.udict_get?(256, player_address);
+    if (~ found?) {
+        ;; Initialize new player
+        player_data = begin_cell()
+            .store_coins(0)           ;; balance
+            .store_uint(0, 64)        ;; last_tap
+            .store_uint(1, 32)        ;; tap_power
+            .store_uint(0, 32)        ;; mining_power
+            .store_dict(new_dict())   ;; boosters
+            .end_cell();
+    }
+    
+    slice ds = player_data.begin_parse();
+    int balance = ds~load_coins();
+    int last_tap = ds~load_uint(64);
+    
+    ;; Check cooldown
+    throw_if(76, (now() - last_tap) < tap_cooldown);
+    
+    ;; Calculate and add reward
+    int reward = calculate_tap_reward(player_address);
+    balance += reward;
+    
+    ;; Update player data
+    player_data = begin_cell()
+        .store_coins(balance)
+        .store_uint(now(), 64)
+        .store_slice(ds)
+        .end_cell();
+    
+    players~udict_set(256, player_address, player_data);
+    save_data();
+    
+    ;; Send reward notification
+    var msg = begin_cell()
+        .store_uint(op::reward_notification(), 32)
+        .store_uint(0, 64)
+        .store_coins(reward)
+        .store_slice(player_address)
+        .end_cell();
+    send_raw_message(msg, 1);
+}
+
+;; Add booster to player
+() add_booster(slice player_address, int booster_id, int multiplier, int duration) impure {
+    throw_unless(73, equal_slices(owner_address, sender_address()));
+    
+    (cell player_data, int found?) = players.udict_get?(256, player_address);
+    throw_unless(75, found?);
+    
+    slice ds = player_data.begin_parse();
+    cell boosters = ds~load_ref();
+    
+    ;; Add new booster
+    cell booster_data = begin_cell()
+        .store_uint(multiplier, 32)
+        .store_uint(now() + duration, 64)
+        .end_cell();
+    
+    boosters~udict_set(32, booster_id, booster_data);
+    
+    ;; Update player data
+    player_data = begin_cell()
+        .store_slice(ds)
+        .store_dict(boosters)
+        .end_cell();
+    
+    players~udict_set(256, player_address, player_data);
+    save_data();
+}
+
+;; Get methods
+int get_player_balance(slice address) method_id {
+    (cell player_data, int found?) = players.udict_get?(256, address);
+    if (~ found?) {
+        return 0;
+    }
+    slice ds = player_data.begin_parse();
+    return ds~load_coins();
+}
+
+cell get_player_boosters(slice address) method_id {
+    (cell player_data, int found?) = players.udict_get?(256, address);
+    if (~ found?) {
+        return new_dict();
+    }
+    slice ds = player_data.begin_parse();
+    return ds~load_ref();
+}
+
+;; Contract main entry point
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) { 
+        return (); 
+    }
+    
+    load_data();
+    int op = in_msg_body~load_uint(32);
+    
+    if (op == op::tap()) {
+        slice player_address = in_msg_body~load_msg_addr();
+        handle_tap(player_address);
+        return ();
+    }
+    
+    if (op == op::add_booster()) {
+        slice player_address = in_msg_body~load_msg_addr();
+        int booster_id = in_msg_body~load_uint(32);
+        int multiplier = in_msg_body~load_uint(32);
+        int duration = in_msg_body~load_uint(32);
+        add_booster(player_address, booster_id, multiplier, duration);
+        return ();
+    }
+    
+    throw(0xffff);
+}

@@ -1,0 +1,11 @@
+;; Operation codes for contract messages
+
+const int op::transfer() = 0x5fcc3d14;            ;; Transfer tokens
+const int op::internal_transfer() = 0x178d4519;    ;; Internal token transfer
+const int op::mint_tokens() = 0x1674b0a0;         ;; Mint new tokens
+const int op::burn_tokens() = 0x595f07bc;         ;; Burn tokens
+const int op::tap() = 0x7e8764ef;                 ;; Player tap action
+const int op::add_booster() = 0x2b86c972;         ;; Add booster to player
+const int op::reward_notification() = 0x4d9c7aa3;  ;; Notify about reward
+const int op::claim_airdrop() = 0x1c8f4b2d;       ;; Claim airdrop
+const int op::add_mining_power() = 0x3e7d4f15;    ;; Add mining power
